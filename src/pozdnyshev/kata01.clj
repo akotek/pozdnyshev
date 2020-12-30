@@ -2,6 +2,16 @@
   (:require [clojure.string :as str]))
 
 ; ===========================================================================
+;; state
+
+(def pricing-rules (atom {} :validator map?))
+
+(def co-initial {:total-price 0
+                 :items-count {}})
+
+(def co (atom co-initial :validator map?))
+
+; ===========================================================================
 ;; utils
 
 (defn str->price-tuple [s]
@@ -15,17 +25,6 @@
                      :sp-price (when special-price
                                  (str->price-tuple special-price))}}))
        (into {})))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; State
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(def pricing-rules (atom {} :validator map?))
-
-(def co-initial {:total-price 0
-                 :items-count {}})
-
-(def co (atom co-initial :validator map?))
 
 (defn apply-special-price? [items-count sp-price]
   (and sp-price
