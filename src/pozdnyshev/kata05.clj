@@ -9,14 +9,13 @@
 
 ; ===========================================================================
 ;; state
-(def bloom-filter (atom {:max-size 0
-                         :hash-fs  []
-                         :sequence []} :validator map?))
+(def bloom-filter (atom {:hash-fs  []
+                         :bitmap []} :validator map?))
 
 (defn middleware-fn [f]
   (fn [x]
     (mod (str->ascii (f x))
-         (count (:sequence @bloom-filter)))))
+         (count (:bitmap @bloom-filter)))))
 
 (def hash-fs
   (map middleware-fn [digest/md2 digest/md5 digest/sha-1 digest/sha-256 digest/sha-512]))
@@ -27,19 +26,18 @@
 (defn init! [m k]
   (assert (<= k (count hash-fs)) (format "currently available %s hash functions" (count hash-fs)))
   (swap! bloom-filter (fn [_]
-                        {:max-size m
-                         :hash-fs  (take k hash-fs)
-                         :sequence (into [] (repeat m 0))})))
+                        {:hash-fs  (take k hash-fs)
+                         :bitmap (into [] (repeat m 0))})))
 
 (defn add! [x]
   (doseq [f (:hash-fs @bloom-filter)]
     (let [bf @bloom-filter
           idx (f x)]
-      (swap! bloom-filter (fn [_] (update bf :sequence
-                                          (fn [_]
-                                            (assoc (:sequence bf) idx 1))))))))
+      (swap! bloom-filter (fn [_]
+                            (update bf :bitmap
+                                    (fn [_] (assoc (:bitmap bf) idx 1))))))))
 
 (defn in? [x]
   (let [bf @bloom-filter
         idxs (map #(% x) (:hash-fs bf))]
-    (every? #(= 1 %) (map (:sequence bf) idxs))))
+    (every? #(= 1 %) (map (:bitmap bf) idxs))))

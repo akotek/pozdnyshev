@@ -12,7 +12,7 @@
 ;; tests
 
 (defn setup [f]
-  (bf/init! 50 5)
+  (bf/init! 5000000 5)
   (f))
 
 (use-fixtures
