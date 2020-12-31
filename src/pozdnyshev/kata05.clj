@@ -1,22 +1,17 @@
-(ns pozdnyshev.kata05)
+(ns pozdnyshev.kata05
+  (:require [digest :refer :all]))
 
 ; ===========================================================================
-;; hash functions:
-
-(defn md5 [s])
-
-(defn sha-1 [s])
-
-(defn sha-2 [s])
-
-(defn whirpool [s])
+;; utils
 
 (defn str->ascii [s]
   (reduce #(+ %1 (int %2)) 0 s))
 
 ; ===========================================================================
 ;; state
-(def bloom-filter (atom {} :validator map?))
+(def bloom-filter (atom {:max-size 0
+                         :hash-fs  []
+                         :sequence []} :validator map?))
 
 (defn middleware-fn [f]
   (fn [x]
@@ -24,19 +19,27 @@
          (count (:sequence @bloom-filter)))))
 
 (def hash-fs
-  (map middleware-fn [md5 sha-1 sha-2 whirpool]))
+  (map middleware-fn [digest/md2 digest/md5 digest/sha-1 digest/sha-256 digest/sha-512]))
 
 ; ===========================================================================
 ;; API
 
 (defn init! [m k]
-  (assert (< k (count hash-fs)) (format "currently available %s hash functions" (count hash-fs)))
-  (swap! bloom-filter {:max-size m
-                       :hash-fs  (take k hash-fs)
-                       :sequence (repeat m 0)}))
+  (assert (<= k (count hash-fs)) (format "currently available %s hash functions" (count hash-fs)))
+  (swap! bloom-filter (fn [_]
+                        {:max-size m
+                         :hash-fs  (take k hash-fs)
+                         :sequence (into [] (repeat m 0))})))
 
-(defn set! [s]
+(defn add! [x]
   (doseq [f (:hash-fs @bloom-filter)]
     (let [bf @bloom-filter
-          idx (f s)]
-      (swap! bloom-filter (fn [_] (update-in bf [:sequence idx] 1))))))
+          idx (f x)]
+      (swap! bloom-filter (fn [_] (update bf :sequence
+                                          (fn [_]
+                                            (assoc (:sequence bf) idx 1))))))))
+
+(defn in? [x]
+  (let [bf @bloom-filter
+        idxs (map #(% x) (:hash-fs bf))]
+    (every? #(= 1 %) (map (:sequence bf) idxs))))

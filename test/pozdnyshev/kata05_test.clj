@@ -1,5 +1,6 @@
 (ns pozdnyshev.kata05-test
-  (:require [clojure.test :refer :all]))
+  (:require [clojure.test :refer :all]
+            [pozdnyshev.kata05 :as bf]))
 
 
 ; ===========================================================================
@@ -10,7 +11,20 @@
 ; ===========================================================================
 ;; tests
 
-(deftest test-spell-check
-  (let []))
+(defn setup [f]
+  (bf/init! 50 5)
+  (f))
 
-;; generative testing
+(use-fixtures
+  :once
+  setup)
+
+(deftest test-set-membership
+  (let [in ["a" "b" "c"]
+        out ["d" "e" "f"]]
+    (doseq [x in]
+      (bf/add! x))
+    (doseq [x in]
+      (is (true? (bf/in? x))))
+    (doseq [x out]
+      (is (false? (bf/in? x))))))
