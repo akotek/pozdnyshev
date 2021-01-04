@@ -1,43 +1,28 @@
 (ns pozdnyshev.kata05
-  (:require [digest :refer :all]))
+  (:require (bigml.sketchy [murmur :as murmur])))
 
 ; ===========================================================================
 ;; utils
 
-(defn str->ascii [s]
-  (reduce #(+ %1 (int %2)) 0 s))
-
-; ===========================================================================
-;; state
-(def bloom-filter (atom {:hash-fs  []
-                         :bitmap []} :validator map?))
-
-(defn middleware-fn [f]
-  (fn [x]
-    (mod (str->ascii (f x))
-         (count (:bitmap @bloom-filter)))))
-
-(def hash-fs
-  (map middleware-fn [digest/md2 digest/md5 digest/sha-1 digest/sha-256 digest/sha-512]))
+(defn bm-idxs [bm x seed-count]
+  (map (fn [h seed]
+         (mod (murmur/hash h seed)
+              (count bm)))
+       (repeat seed-count (.hashCode x)) (range seed-count)))
 
 ; ===========================================================================
 ;; API
 
-(defn init! [m k]
-  (assert (<= k (count hash-fs)) (format "currently available %s hash functions" (count hash-fs)))
-  (swap! bloom-filter (fn [_]
-                        {:hash-fs  (take k hash-fs)
-                         :bitmap (into [] (repeat m 0))})))
+(defn create [m k]
+  {:hs-len k
+   :bm-len m
+   :bitmap (into [] (repeat m 0))})
 
-(defn add! [x]
-  (doseq [f (:hash-fs @bloom-filter)]
-    (let [bf @bloom-filter
-          idx (f x)]
-      (swap! bloom-filter (fn [_]
-                            (update bf :bitmap
-                                    (fn [_] (assoc (:bitmap bf) idx 1))))))))
+(defn insert [{:keys [bitmap hs-len] :as bloom} x]
+  (let [idxs (bm-idxs bitmap x hs-len)]
+    (assoc bloom :bitmap (reduce #(update %1 %2 (fn [_] 1))
+                                 bitmap idxs))))
 
-(defn in? [x]
-  (let [bf @bloom-filter
-        idxs (map #(% x) (:hash-fs bf))]
-    (every? #(= 1 %) (map (:bitmap bf) idxs))))
+(defn in? [{:keys [bitmap hs-len]} x]
+  (let [idxs (bm-idxs bitmap x hs-len)]
+    (= (count idxs) (reduce + 0 (map bitmap idxs)))))
