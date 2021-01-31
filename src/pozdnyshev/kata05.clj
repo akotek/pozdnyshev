@@ -6,8 +6,7 @@
 
 (defn bm-idxs [bm x seed-count]
   (map (fn [h seed]
-         (mod (murmur/hash h seed)
-              (count bm)))
+         (mod (murmur/hash h seed))
        (repeat seed-count (.hashCode x)) (range seed-count)))
 
 ; ===========================================================================
